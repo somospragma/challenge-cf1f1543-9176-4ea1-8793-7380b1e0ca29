@@ -123,125 +123,158 @@ El participante que recibirá este proyecto los debe encontrar y resolver él mi
 
 INPUT
 Aquí está la cadena con los archivos:
-package com.bank.transaction;
+// === ARCHIVO: src/main/java/com/pragma/productservice/ProductServiceApplication.java ===
+package com.pragma.productservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class TransactionApplication {
+public class ProductServiceApplication {
     public static void main(String[] args) {
-        SpringApplication.run(TransactionApplication.class, args);
+        SpringApplication.run(ProductServiceApplication.class, args);
     }
 }
-// === ARCHIVO: src/main/java/com/bank/transaction/TransactionApplication.java ===
 
-spring.application.name=transaction-service
-server.port=8081
+// === ARCHIVO: src/main/resources/application.yml ===
+spring:
+  application:
+    name: product-service
+  data:
+    jpa:
+      hibernate:
+        ddl-auto: update
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.MySQL8Dialect
+  web:
+    resources:
+      static-locations: classpath:/static/
 
-# External service configuration
-external.service.url=http://localhost:8082
-// === ARCHIVO: src/main/resources/application.properties ===
+// === ARCHIVO: src/main/java/com/pragma/productservice/controller/ProductController.java ===
+package com.pragma.productservice.controller;
 
-package com.bank.transaction.controller;
-
-import com.bank.transaction.dto.TransactionRequest;
-import com.bank.transaction.dto.TransactionResponse;
-import com.bank.transaction.service.TransactionService;
+import com.pragma.productservice.model.Product;
+import com.pragma.productservice.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/transactions")
-public class TransactionController {
+@RequestMapping("/api/products")
+public class ProductController {
 
     @Autowired
-    private TransactionService transactionService;
+    private ProductService productService;
 
     @PostMapping
-    public ResponseEntity<TransactionResponse> createTransaction(@RequestBody TransactionRequest transactionRequest) {
-        return ResponseEntity.ok(transactionService.createTransaction(transactionRequest));
+    public Mono<Product> createProduct(@RequestBody Product product) {
+        return productService.createProduct(product);
+    }
+
+    @GetMapping
+    public Flux<Product> getAllProducts() {
+        return productService.getAllProducts();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TransactionResponse> getTransactionById(@PathVariable Long id) {
-        return ResponseEntity.ok(transactionService.getTransactionById(id));
+    public Mono<Product> getProductById(@PathVariable Long id) {
+        return productService.getProductById(id);
+    }
+
+    @PutMapping("/{id}")
+    public Mono<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
+        return productService.updateProduct(id, product);
+    }
+
+    @DeleteMapping("/{id}")
+    public Mono<ResponseEntity<?>> deleteProduct(@PathVariable Long id) {
+        return productService.deleteProduct(id);
     }
 }
-// === ARCHIVO: src/main/java/com/bank/transaction/controller/TransactionController.java ===
 
-package com.bank.transaction.service;
+// === ARCHIVO: src/main/java/com/pragma/productservice/service/ProductService.java ===
+package com.pragma.productservice.service;
 
-import com.bank.transaction.dto.TransactionRequest;
-import com.bank.transaction.dto.TransactionResponse;
-import com.bank.transaction.model.Transaction;
-import com.bank.transaction.repository.TransactionRepository;
+import com.pragma.productservice.model.Product;
+import com.pragma.productservice.repository.ProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
-public class TransactionService {
+public class ProductService {
 
-    private final TransactionRepository transactionRepository;
+    @Autowired
+    private ProductRepository productRepository;
 
-    public TransactionService(TransactionRepository transactionRepository) {
-        this.transactionRepository = transactionRepository;
+    public Mono<Product> createProduct(Product product) {
+        if (product.getName() == null || product.getName().isEmpty()) {
+            return Mono.error(new IllegalArgumentException("Product name cannot be empty"));
+        }
+        if (product.getPrice() < 0) {
+            return Mono.error(new IllegalArgumentException("Product price cannot be negative"));
+        }
+        return productRepository.findByName(product.getName())
+               .filter(p ->!p.getId().equals(product.getId()))
+               .switchIfEmpty(productRepository.save(product))
+               .flatMap(savedProduct -> Mono.just(savedProduct));
     }
 
-    public TransactionResponse createTransaction(TransactionRequest transactionRequest) {
-        Transaction transaction = new Transaction();
-        transaction.setAmount(transactionRequest.getAmount());
-        transaction.setCurrency(transactionRequest.getCurrency());
-        transaction.setDescription(transactionRequest.getDescription());
-        transaction = transactionRepository.save(transaction);
-        return convertToResponse(transaction);
+    public Flux<Product> getAllProducts() {
+        return productRepository.findAll();
     }
 
-    public TransactionResponse getTransactionById(Long id) {
-        Optional<Transaction> transaction = transactionRepository.findById(id);
-        return transaction.map(this::convertToResponse).orElse(null);
+    public Mono<Product> getProductById(Long id) {
+        return productRepository.findById(id);
     }
 
-    private TransactionResponse convertToResponse(Transaction transaction) {
-        TransactionResponse response = new TransactionResponse();
-        response.setId(transaction.getId());
-        response.setAmount(transaction.getAmount());
-        response.setCurrency(transaction.getCurrency());
-        response.setDescription(transaction.getDescription());
-        return response;
+    public Mono<Product> updateProduct(Long id, Product product) {
+        return productRepository.findById(id)
+               .flatMap(existingProduct -> {
+                    existingProduct.setName(product.getName());
+                    existingProduct.setPrice(product.getPrice());
+                    existingProduct.setStock(product.getStock());
+                    existingProduct.setCategory(product.getCategory());
+                    return productRepository.save(existingProduct);
+                });
+    }
+
+    public Mono<ResponseEntity<?>> deleteProduct(Long id) {
+        return productRepository.findById(id)
+               .flatMap(productRepository::delete)
+               .thenReturn(ResponseEntity.ok().build());
     }
 }
-// === ARCHIVO: src/main/java/com/bank/transaction/service/TransactionService.java ===
 
-package com.bank.transaction.repository;
+// === ARCHIVO: src/main/java/com/pragma/productservice/repository/ProductRepository.java ===
+package com.pragma.productservice.repository;
 
-import com.bank.transaction.model.Transaction;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import com.pragma.productservice.model.Product;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Mono;
 
-@Repository
-public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+public interface ProductRepository extends ReactiveCrudRepository<Product, Long> {
+    Mono<Product> findByName(String name);
 }
-// === ARCHIVO: src/main/java/com/bank/transaction/repository/TransactionRepository.java ===
 
-package com.bank.transaction.model;
+// === ARCHIVO: src/main/java/com/pragma/productservice/model/Product.java ===
+package com.pragma.productservice.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
-public class Transaction {
-
+@Table("products")
+public class Product {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private Double amount;
-    private String currency;
-    private String description;
+    private String name;
+    private double price;
+    private int stock;
+    private String category;
 
     // Getters and setters
     public Long getId() {
@@ -252,287 +285,168 @@ public class Transaction {
         this.id = id;
     }
 
-    public Double getAmount() {
-        return amount;
+    public String getName() {
+        return name;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getCurrency() {
-        return currency;
+    public double getPrice() {
+        return price;
     }
 
-    public void setCurrency(String currency) {
-        this.currency = currency;
+    public void setPrice(double price) {
+        this.price = price;
     }
 
-    public String getDescription() {
-        return description;
+    public int getStock() {
+        return stock;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-}
-// === ARCHIVO: src/main/java/com/bank/transaction/model/Transaction.java ===
-
-package com.bank.transaction.dto;
-
-public class TransactionRequest {
-
-    private Double amount;
-    private String currency;
-    private String description;
-
-    // Getters and setters
-    public Double getAmount() {
-        return amount;
+    public void setStock(int stock) {
+        this.stock = stock;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
+    public String getCategory() {
+        return category;
     }
 
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
+    public void setCategory(String category) {
+        this.category = category;
     }
 }
-// === ARCHIVO: src/main/java/com/bank/transaction/dto/TransactionRequest.java ===
 
-package com.bank.transaction.dto;
-
-public class TransactionResponse {
-
-    private Long id;
-    private Double amount;
-    private String currency;
-    private String description;
-
-    // Getters and setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-}
-// === ARCHIVO: src/main/java/com/bank/transaction/dto/TransactionResponse.java ===
-
-package com.bank.transaction.client;
+// === ARCHIVO: src/main/java/com/pragma/productservice/client/OtherServiceClient.java ===
+package com.pragma.productservice.client;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Component
-public class ExternalServiceClient {
+public class OtherServiceClient {
 
     private final WebClient webClient;
 
-    public ExternalServiceClient(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.build();
+    public OtherServiceClient(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder.baseUrl("http://other-service").build();
     }
 
-    public String callExternalService() {
-        return webClient.get()
-               .uri("http://localhost:8082/external-service")
-               .retrieve()
-               .bodyToMono(String.class)
-               .block();
+    public void callOtherService() {
+        // Implementar la lógica de llamada al otro servicio
     }
 }
-// === ARCHIVO: src/main/java/com/bank/transaction/client/ExternalServiceClient.java ===
 
-# External service discovery configuration
-external.service.url=http://localhost:8082
-// === ARCHIVO: src/main/resources/discovery.properties ===
+// === ARCHIVO: src/test/java/com/pragma/productservice/ProductControllerTest.java ===
+package com.pragma.productservice;
 
-package com.bank.transaction;
-
-import org.springframework.boot.test.context.SpringBootTest;
-
-@SpringBootTest
-class TransactionApplicationTests {
-
-}
-// === ARCHIVO: src/test/java/com/bank/transaction/TransactionApplicationTests.java ===
-
-package com.bank.transaction.controller;
-
-import com.bank.transaction.dto.TransactionRequest;
-import com.bank.transaction.dto.TransactionResponse;
-import com.bank.transaction.service.TransactionService;
+import com.pragma.productservice.controller.ProductController;
+import com.pragma.productservice.model.Product;
+import com.pragma.productservice.service.ProductService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.reactive.function.WebTestClient.bindToController;
-import static org.springframework.test.web.reactive.function.WebTestClient.bindToRouterFunction;
 
-@SpringBootTest
-class TransactionControllerTest {
+@WebFluxTest(ProductController.class)
+class ProductControllerTest {
 
     @Autowired
-    private TransactionController transactionController;
+    private WebTestClient webTestClient;
 
     @MockBean
-    private TransactionService transactionService;
+    private ProductService productService;
 
     @Test
-    void createTransaction() {
-        TransactionRequest request = new TransactionRequest();
-        request.setAmount(100.0);
-        request.setCurrency("USD");
-        request.setDescription("Test transaction");
+    void createProduct() {
+        Product product = new Product();
+        product.setName("Product 1");
+        product.setPrice(10.0);
+        product.setStock(100);
+        product.setCategory("Category 1");
 
-        TransactionResponse response = new TransactionResponse();
-        response.setId(1L);
-        response.setAmount(100.0);
-        response.setCurrency("USD");
-        response.setDescription("Test transaction");
-
-        when(transactionService.createTransaction(request)).thenReturn(response);
-
-        WebTestClient webTestClient = bindToController(transactionController).build();
+        when(productService.createProduct(any())).thenReturn(Mono.just(product));
 
         webTestClient.post()
-               .uri("/transactions")
-               .bodyValue(request)
+               .uri("/api/products")
+               .contentType(MediaType.APPLICATION_JSON)
+               .bodyValue(product)
                .exchange()
                .expectStatus().isOk()
-               .expectBody(TransactionResponse.class)
-               .isEqualTo(response);
+               .expectBody(Product.class);
     }
 
     @Test
-    void getTransactionById() {
-        Long id = 1L;
+    void getAllProducts() {
+        Product product = new Product();
+        product.setName("Product 1");
+        product.setPrice(10.0);
+        product.setStock(100);
+        product.setCategory("Category 1");
 
-        TransactionResponse response = new TransactionResponse();
-        response.setId(id);
-        response.setAmount(100.0);
-        response.setCurrency("USD");
-        response.setDescription("Test transaction");
-
-        when(transactionService.getTransactionById(id)).thenReturn(response);
-
-        WebTestClient webTestClient = bindToController(transactionController).build();
+        when(productService.getAllProducts()).thenReturn(Flux.just(product));
 
         webTestClient.get()
-               .uri("/transactions/{id}", id)
+               .uri("/api/products")
                .exchange()
                .expectStatus().isOk()
-               .expectBody(TransactionResponse.class)
-               .isEqualTo(response);
-    }
-}
-// === ARCHIVO: src/test/java/com/bank/transaction/TransactionControllerTest.java ===
-
-package com.bank.transaction.service;
-
-import com.bank.transaction.dto.TransactionRequest;
-import com.bank.transaction.dto.TransactionResponse;
-import com.bank.transaction.model.Transaction;
-import com.bank.transaction.repository.TransactionRepository;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import reactor.core.publisher.Mono;
-import java.util.Optional;
-
-@SpringBootTest
-class TransactionServiceTest {
-
-    @Autowired
-    private TransactionService transactionService;
-
-    @MockBean
-    private TransactionRepository transactionRepository;
-
-    @Test
-    void createTransaction() {
-        TransactionRequest request = new TransactionRequest();
-        request.setAmount(100.0);
-        request.setCurrency("USD");
-        request.setDescription("Test transaction");
-
-        Transaction transaction = new Transaction();
-        transaction.setAmount(100.0);
-        transaction.setCurrency("USD");
-        transaction.setDescription("Test transaction");
-
-        Mockito.when(transactionRepository.save(Mockito.any(Transaction.class))).thenReturn(transaction);
-
-        TransactionResponse response = transactionService.createTransaction(request);
-
-        assert response!= null;
-        assert response.getAmount().equals(100.0);
-        assert response.getCurrency().equals("USD");
-        assert response.getDescription().equals("Test transaction");
+               .expectBodyList(Product.class);
     }
 
     @Test
-    void getTransactionById() {
-        Long id = 1L;
+    void getProductById() {
+        Product product = new Product();
+        product.setId(1L);
+        product.setName("Product 1");
+        product.setPrice(10.0);
+        product.setStock(100);
+        product.setCategory("Category 1");
 
-        Transaction transaction = new Transaction();
-        transaction.setId(id);
-        transaction.setAmount(100.0);
-        transaction.setCurrency("USD");
-        transaction.setDescription("Test transaction");
+        when(productService.getProductById(1L)).thenReturn(Mono.just(product));
 
-        Mockito.when(transactionRepository.findById(id)).thenReturn(Optional.of(transaction));
+        webTestClient.get()
+               .uri("/api/products/1")
+               .exchange()
+               .expectStatus().isOk()
+               .expectBody(Product.class);
+    }
 
-        TransactionResponse response = transactionService.getTransactionById(id);
+    @Test
+    void updateProduct() {
+        Product product = new Product();
+        product.setId(1L);
+        product.setName("Product 1 Updated");
+        product.setPrice(20.0);
+        product.setStock(200);
+        product.setCategory("Category 1 Updated");
 
-        assert response!= null;
-        assert response.getId().equals(id);
-        assert response.getAmount().equals(100.0);
-        assert response.getCurrency().equals("USD");
-        assert response.getDescription().equals("Test transaction");
+        when(productService.updateProduct(1L, any())).thenReturn(Mono.just(product));
+
+        webTestClient.put()
+               .uri("/api/products/1")
+               .contentType(MediaType.APPLICATION_JSON)
+               .bodyValue(product)
+               .exchange()
+               .expectStatus().isOk()
+               .expectBody(Product.class);
+    }
+
+    @Test
+    void deleteProduct() {
+        when(productService.deleteProduct(1L)).thenReturn(Mono.just(ResponseEntity.ok().build()));
+
+        webTestClient.delete()
+               .uri("/api/products/1")
+               .exchange()
+               .expectStatus().isOk();
     }
 }
-// === ARCHIVO: src/test/java/com/bank/transaction/TransactionServiceTest.java ===
+
 ```

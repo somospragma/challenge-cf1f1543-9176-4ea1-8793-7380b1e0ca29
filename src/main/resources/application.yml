@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: product-service
+  data:
+    jpa:
+      hibernate:
+        ddl-auto: update
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.MySQL8Dialect
+  web:
+    resources:
+      static-locations: classpath:/static/

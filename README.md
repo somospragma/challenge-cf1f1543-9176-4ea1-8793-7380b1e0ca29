@@ -1,6 +1,6 @@
-# Diseño y Desarrollo de Microservicios en un Sistema Bancario
+# Desarrollo de un microservicio de gestión de productos
 
-El equipo de desarrollo de un banco está migrando su sistema legado a una arquitectura basada en microservicios. Tu tarea es diseñar y desarrollar un microservicio que maneje las transacciones de los clientes. Este microservicio debe ser capaz de registrar transacciones, consultar el historial de transacciones de un cliente y manejar errores comunes como transacciones duplicadas o intentos de transacciones con saldo insuficiente.
+Una empresa de venta de productos en línea necesita un microservicio para gestionar su catálogo de productos. Cada producto tiene un nombre, precio, stock y categoría. El sistema no debe permitir precios negativos ni nombres duplicados. El objetivo es desarrollar un microservicio que permita crear, leer, actualizar y eliminar productos, asegurando la consistencia de los datos.
 
 ## Informacion General
 
@@ -9,7 +9,7 @@ El equipo de desarrollo de un banco está migrando su sistema legado a una arqui
 | **Tema** | Microservicios con Spring Boot |
 | **Nivel** | junior-l2 |
 | **Tipo** | practical |
-| **Tiempo estimado** | 4-6 horas |
+| **Tiempo estimado** | 3-4 horas |
 
 ## Fases del Reto
 
@@ -38,84 +38,60 @@ El equipo de desarrollo de un banco está migrando su sistema legado a una arqui
 
 </details>
 
-### Fase 1: Definición del Microservicio
+### Fase 1: Modelado del dominio
 
-**Objetivo:** Definir las funcionalidades y los endpoints que el microservicio debe exponer.
+**Objetivo:** Definir las reglas y restricciones del dominio para los productos.
 
 **Tiempo estimado:** 1 hora
 
 **Instrucciones:**
 
-- Identifica las operaciones que el microservicio debe soportar (registrar transacción, consultar historial de transacciones).
-- Define los endpoints y los métodos HTTP que utilizarás para cada operación.
+- Identifica las reglas de negocio para los productos (nombre, precio, stock, categoría).
+- Define las restricciones que deben cumplir los productos (precio no negativo, nombre único).
 
-**Entregable:** Descripción escrita de las funcionalidades y endpoints del microservicio.
+**Entregable:** Documento que describe las reglas y restricciones del dominio.
 
 <details>
 <summary>Pistas de conocimiento</summary>
 
-- Considera los verbos HTTP y su significado en el contexto de tu microservicio.
-- Piensa en cómo modelar los datos de las transacciones.
+- Considera los atributos y relaciones entre los productos.
+- Piensa en cómo garantizar la unicidad del nombre y la validez del precio.
 
 </details>
 
-### Fase 2: Implementación del Microservicio
+### Fase 2: Implementación de endpoints
 
-**Objetivo:** Implementar el microservicio con las funcionalidades definidas.
+**Objetivo:** Crear endpoints para crear, leer, actualizar y eliminar productos.
 
 **Tiempo estimado:** 2 horas
 
 **Instrucciones:**
 
-- Crea las clases y métodos necesarios para implementar las funcionalidades del microservicio.
-- Implementa la lógica para registrar transacciones y consultar el historial de transacciones de un cliente.
+- Implementa los endpoints REST para las operaciones CRUD de productos.
+- Asegura que los endpoints validen las reglas y restricciones definidas en la fase anterior.
 
-**Entregable:** Código fuente del microservicio implementado.
-
-<details>
-<summary>Pistas de conocimiento</summary>
-
-- Considera cómo persistir las transacciones de manera eficiente.
-- Piensa en cómo manejar errores comunes como transacciones duplicadas o intentos de transacciones con saldo insuficiente.
-
-</details>
-
-### Fase 3: Pruebas y Mejoras
-
-**Objetivo:** Realizar pruebas unitarias y mejorar el microservicio.
-
-**Tiempo estimado:** 1 hora
-
-**Instrucciones:**
-
-- Escribe pruebas unitarias para las funcionalidades implementadas.
-- Identifica y corrige cualquier error o ineficiencia en el código.
-
-**Entregable:** Código fuente del microservicio con pruebas unitarias y mejoras aplicadas.
+**Entregable:** Microservicio con endpoints funcionales para CRUD de productos.
 
 <details>
 <summary>Pistas de conocimiento</summary>
 
-- Utiliza herramientas de testing para escribir pruebas unitarias efectivas.
-- Revisa el código en busca de ineficiencias o errores y corrígelos.
+- Utiliza métodos HTTP apropiados para cada operación (POST, GET, PUT, DELETE).
+- Implementa validaciones en los endpoints para asegurar la consistencia de los datos.
 
 </details>
 
 ## Dimensiones Evaluadas
 
-- **queEs**: ¿Qué es un microservicio y por qué se utilizan en sistemas bancarios?
-- **paraQueSirve**: ¿Para qué sirve el microservicio que estás desarrollando y cómo beneficia al sistema bancario?
-- **comoSeUsa**: ¿Cómo se usa el microservicio para registrar y consultar transacciones?
-- **erroresComunes**: ¿Qué errores comunes puede encontrar el microservicio y cómo los maneja?
-- **queDecisionesImplica**: ¿Qué decisiones implica la implementación del microservicio y cómo afectan su diseño y funcionamiento?
+- **queEs**: ¿Qué es un microservicio y por qué se usa en este contexto?
+- **paraQueSirve**: ¿Para qué sirve cada endpoint implementado en este microservicio?
+- **comoSeUsa**: ¿Cómo se usan las validaciones en los endpoints para garantizar la consistencia de los datos?
+- **erroresComunes**: ¿Qué errores comunes pueden ocurrir al implementar los endpoints y cómo los evitarías?
 
 ## Criterios de Evaluacion
 
-- Definición clara de las funcionalidades y endpoints del microservicio.
-- Implementación correcta del microservicio con las funcionalidades definidas.
-- Manejo adecuado de errores comunes en el microservicio.
-- Pruebas unitarias efectivas para las funcionalidades implementadas.
-- Mejoras aplicadas al código para corregir errores o ineficiencias.
+- Definición clara de reglas y restricciones del dominio.
+- Implementación correcta de endpoints REST para operaciones CRUD.
+- Validación adecuada de datos en los endpoints.
 
 ---
 
